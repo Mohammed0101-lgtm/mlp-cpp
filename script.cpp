@@ -150,7 +150,7 @@ private:
 class Tensor {
 private:
     std::vector<int> shape;
-    std::vector<int> strides;  // Precomputed strides for fast index calculation
+    std::vector<int> strides;  
     std::vector<Value> data;
 
     void computeStrides() {
@@ -193,7 +193,6 @@ public:
 
     Tensor(std::vector<Value> vals) : data(vals) {}
 
-    // Proxy class for non-const Tensor
     class Proxy {
     public: 
         Tensor& tensor;
@@ -216,7 +215,6 @@ public:
         }
     };
 
-    // Proxy class for const Tensor
     class ConstProxy {
     public:
         const Tensor& tensor;
@@ -236,13 +234,10 @@ public:
         }
     };
     
-    // Overload operator[] to return a Proxy for multi-dimensional access
-    // Overload operator[] for non-const Tensor
     Proxy operator[](int i) {
         return Proxy(*this, static_cast<std::vector<int>>(i));
     }
 
-    // Overload operator[] for const Tensor
     ConstProxy operator[](int i) const {
         return ConstProxy(*this, static_cast<std::vector<int>>(i));
     }
@@ -326,24 +321,22 @@ public:
     }
 
     Tensor multinomial(int num_samples = 1) const {
-        assert(shape.size() == 1); // Ensure tensor is one-dimensional
+        assert(shape.size() == 1); 
 
-        // Generate cumulative probabilities
         std::vector<float> cumulative_probs(data.size());
         cumulative_probs[0] = data[0].getData();
         for (size_t i = 1; i < data.size(); ++i) {
             cumulative_probs[i] = cumulative_probs[i - 1] + data[i].getData();
         }
 
-        Tensor result(static_cast<std::vector<int>>(num_samples)); // Create tensor to store the sampled indices
+        Tensor result(static_cast<std::vector<int>>(num_samples)); 
 
-        // Random number generator
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_real_distribution<> dis(0.0, cumulative_probs.back());
 
         for (int sample = 0; sample < num_samples; ++sample) {
-            float rand_prob = dis(gen); // Sample random probability
+            float rand_prob = dis(gen); 
             auto it = std::lower_bound(cumulative_probs.begin(), cumulative_probs.end(), rand_prob);
             int sampled_index = std::distance(cumulative_probs.begin(), it);
             result[sample] = Value(static_cast<float>(sampled_index));
