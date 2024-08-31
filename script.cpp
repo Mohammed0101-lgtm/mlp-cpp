@@ -353,18 +353,16 @@ Tensor Tensor::tanh() const {
 
 
 Tensor Tensor::multinomial(int num_samples = 1) const {
-    assert(shape.size() == 1); // Ensure tensor is one-dimensional
-
-    // Generate cumulative probabilities
+    assert(shape.size() == 1); 
+    
     std::vector<float> cumulative_probs(data.size());
     cumulative_probs[0] = data[0].getData();
     for (size_t i = 1; i < data.size(); ++i) {
         cumulative_probs[i] = cumulative_probs[i - 1] + data[i].getData();
     }
 
-    Tensor result(static_cast<std::vector<int>>(num_samples)); // Create tensor to store the sampled indices
+    Tensor result(static_cast<std::vector<int>>(num_samples)); 
 
-    // Random number generator
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<> dis(0.0, cumulative_probs.back());
