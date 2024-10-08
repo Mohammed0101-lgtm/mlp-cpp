@@ -20,6 +20,28 @@ const int context_length = 8;
 const int eval_interval  = 300;
 const int max_iterations = 100000;
 
+// helpers
+template<typename T>
+void append_matrix(std::vector<std::vector<T>>& mat, const std::vector<std::vector<T>>& to_add) {
+    size_t __size = mat.size() + to_add.size();
+    mat.resize(__size);
+
+    for (unsigned int k = 0, i = mat.size(); i < __size; i++, k++)
+    {
+        mat[i] = to_add[k];
+    }
+}
+
+template<typename T>
+void append_vector(std::vector<T>& vec, const std::vector<T>& to_add) {
+    size_t __size = vec.size() + to_add.size();
+
+    for (unsigned int k = 0, i = vec.size(); i < __size; i++, k++)
+    {
+        vec[i] = to_add[k];
+    }
+}
+
 class Data_loader {
    public:
     // to keep track of the backwards mapping of the encoding - to decode
@@ -81,12 +103,14 @@ class Data_loader {
         std::vector<int> result;
         char_to_index.clear();
         int index = 0;
+        vocab_size = 0;
 
         for (char c : str)
         {
             if (char_to_index.find(c) == char_to_index.end())
             {
                 char_to_index[c] = index++;
+                vocab_size++;
             }
             result.push_back(char_to_index[c]);
         }
@@ -132,30 +156,43 @@ class Value {
         data(0.0f),
         grad(0.0f),
         _op(' ') {}
+
+    Value(const Value* val) :
+        data(val->data),
+        grad(val->data),
+        index(val->index),
+        _op(val->_op),
+        _prev(val->_prev) {}
+
     Value(const Value& val) :
         data(val.data),
         grad(val.grad),
         _prev(val._prev),
         _op(val._op) {}
+
     Value(Value& val) :
         data(val.data),
         grad(val.data),
         _prev(val._prev),
         _op(val._op) {}
+
     Value(Value* val) :
         data(val->data),
         grad(val->grad),
         _prev(val->_prev),
         _op(val->_op) {}
+
     Value(float d) :
         data(d),
         grad(0.0f),
         _op(' ') {}
+
     Value(float d, const std::vector<std::shared_ptr<Value>>& children, char op) :
         data(d),
         grad(0.0f),
         _prev(children),
         _op(op) {}
+
     Value(Value&& other) noexcept :
         data(other.data),
         grad(other.grad),
@@ -371,7 +408,7 @@ std::vector<Value> multinomial(std::vector<Value>& data, int num_samples) {
         cumulative_probs[i] = cumulative_probs[i - 1] + data[i].data;
     }
 
-    // Create tensor to store the sampled indices
+    // Create vector to store the sampled indices
     std::vector<Value> result;
     result.reserve(num_samples);
 
@@ -438,10 +475,8 @@ std::vector<std::vector<T>> vectorToMatrix(const std::vector<T>& vec, int rows, 
     return matrix;
 }
 
-};  // namespace data
-
-std::vector<std::vector<data::Value>> matmul(const std::vector<std::vector<data::Value>>& A,
-                                             const std::vector<std::vector<data::Value>>& B) {
+std::vector<std::vector<Value>> matmul(const std::vector<std::vector<Value>>& A,
+                                       const std::vector<std::vector<Value>>& B) {
     // Get dimensions of matrices
     int rowsA = A.size();     // Number of rows in A
     int colsA = A[0].size();  // Number of columns in A
@@ -449,7 +484,7 @@ std::vector<std::vector<data::Value>> matmul(const std::vector<std::vector<data:
 
     // Initialize result matrix C with the appropriate size (rowsA x colsB)
     // filled with zeros
-    std::vector<std::vector<data::Value>> C(rowsA, std::vector<data::Value>(colsB, 0.0f));
+    std::vector<std::vector<Value>> C(rowsA, std::vector<Value>(colsB, 0.0f));
 
     // Perform matrix multiplication
     for (int i = 0; i < rowsA; ++i)
@@ -462,8 +497,12 @@ std::vector<std::vector<data::Value>> matmul(const std::vector<std::vector<data:
             }
         }
     }
+
     return C;
 }
+
+};  // namespace data
+
 
 namespace nn {
 
@@ -475,15 +514,12 @@ class Embedding {
     Embedding() = default;
 
     // Initialize the embedding table with random values
-    Embedding(const std::vector<int>& dims) {
-        if (dims.size() < 2)
-        {
-            throw std::runtime_error(
-              "Cannot initialize embedding table with fewer than 2 dimensions!");
-        }
+    Embedding(const int dims[2]) {
+        assert(dims[0] > 0 && dims[1] > 0);
 
         table.resize(dims[0], std::vector<data::Value>(dims[1]));
         srand(time(0));
+
         for (size_t i = 0; i < dims[0]; i++)
         {
             for (size_t j = 0; j < dims[1]; j++)
@@ -495,6 +531,15 @@ class Embedding {
 
     // Forward pass: lookup embeddings for input indices
     std::vector<std::vector<data::Value>> table_forward(const std::vector<int>& input_indices) {
+        if (input_indices.empty())
+        {
+            throw std::runtime_error("Cannot forward pass empty set of indices");
+        }
+
+        if (table.empty() || table[0].empty())
+        {
+            throw std::runtime_error("Cannot forward pass with an empty lookup table");
+        }
         int num_indices   = static_cast<int>(input_indices.size());
         int embedding_dim = static_cast<int>(table[0].size());
 
@@ -522,7 +567,6 @@ class Embedding {
 
         return output;  // Return the tensor containing the embedding vectors
     }
-
 
     // Backward pass: update embedding table gradients
     void backward(const std::vector<int>& input_indices,  // Input should be indices
@@ -626,13 +670,27 @@ class NeuralNetwork {
     NeuralNetwork(size_t input_size, int vocab_size) :
         hidden_layer(input_size),
         output_layer(1) {
+
+        if (input_size <= 0)
+        {
+            throw std::runtime_error(
+              "'input_size' cannot be less then or equal to zero for initializing the neural net");
+        }
+
+        if (vocab_size <= 0)
+        {
+            throw std::runtime_error(
+              "'vocab_size' cannot be less then or equal to zero for initializing the neural net");
+        }
+
         for (size_t i = 0; i < input_size * 2 + 1; i++)
         {
             parameters.push_back(data::Value(0.0f));
         }
 
+
         int table_dimensions[2] = {vocab_size, 2};
-        lookup_table = Embedding(std::vector<int>(table_dimensions, table_dimensions + 2));
+        lookup_table            = Embedding(table_dimensions);
     }
 
     void set_eval() { is_training = false; }
@@ -666,6 +724,7 @@ class NeuralNetwork {
     void backpropagate(std::vector<data::Value>& output,
                        std::vector<data::Value>& targets,
                        float                     learning_rate) {
+
         assert(output.size() == targets.size());
         // Compute Mean Squared Error loss
         float loss = mse_loss(output, targets);
@@ -717,10 +776,18 @@ class NeuralNetwork {
 
         // Backward pass for the lookup table (embedding layer)
         // Compute gradients with respect to the embeddings
-        std::vector<std::vector<data::Value>> lookup_grad =
-          lookup_table.table_forward(hidden_grad);  // Assume this propagates gradients properly
+        std::vector<std::vector<data::Value>> lookup_grad;
 
-        std::vector<std::vector<data::Value> loo 
+        for (unsigned int i = 0; i < hidden_grad.size(); i++)
+        {
+            std::vector<int> indices;
+            for (int j = 0; j < hidden_grad[i].size(); j++)
+            {
+                indices.push_back(static_cast<int>(hidden_grad[i][j].data));
+            }
+
+            append_matrix<data::Value>(lookup_grad, lookup_table.table_forward(indices));
+        }
 
         // Update embedding values using the gradients
         for (size_t i = 0; i < lookup_grad.size(); i++)
@@ -803,7 +870,7 @@ estimate_loss(nn::NeuralNetwork& model, std::vector<int> train_data, std::vector
             std::vector<data::Value> logits;
             for (unsigned int i = 0; i < batch_size; i++)
             {
-                logits.emplace_back(model.feed_forward(inputs[i]));
+                append_vector<data::Value>(logits, model.feed_forward(inputs[i]));
             }
 
             float loss = model.mse_loss(logits, converted_targets);
@@ -838,7 +905,7 @@ void train_model(nn::NeuralNetwork& model, std::vector<int>& data) {
         std::vector<data::Value> logits;
         for (unsigned int i = 0; i < batch_size; i++)
         {
-            logits.emplace_back(model.feed_forward(inputs[i]));
+            append_vector<data::Value>(logits, model.feed_forward(inputs[i]));
         }
 
         std::vector<data::Value> converted_targets;
@@ -862,8 +929,8 @@ int main(void) {
         return 0;
     }
 
-    nn::NeuralNetwork model(input.length(), loader.get_vocab_size());
     std::vector<int>  encoded = loader.encode(input);
+    nn::NeuralNetwork model(input.length(), loader.get_vocab_size());
     train_model(model, encoded);
 
     return 0;
