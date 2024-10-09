@@ -8,11 +8,11 @@
 #include <vector>
 
 const int batch_size     = 16;
-const int context_length = 8;
+const int context_length = 4;
 const int max_iterations = 3000000;
 const int eval_interval  = 300;
 const int eval_iters     = 200;
-const int layer_size     = 100;
+const int layer_size     = 2000;
 const int embd_dim       = 32;
 
 class DataLoader {
@@ -60,10 +60,6 @@ class DataLoader {
             if (global_idx.find(index) != global_idx.end())
             {
                 result.push_back(global_idx.at(index));
-            }
-            else
-            {
-                result.push_back('?');
             }
         }
 
@@ -245,7 +241,7 @@ int main() {
     try
     {
         DataLoader       data_loader;
-        std::string      input_data = data_loader.read_file("input.txt");
+        std::string      input_data = data_loader.read_file("../input.txt");
         std::vector<int> data       = data_loader.encode(input_data);
 
         int           vocab_size = data_loader.get_vocab_size();

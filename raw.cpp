@@ -1,3 +1,4 @@
+/*This may or may not work*/
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -347,6 +348,7 @@ class Value {
         this->grad = 1.0f;
 
         topo.reverse();
+
         for (std::shared_ptr<Value> v : topo)
         {
             v->_backward();
@@ -722,6 +724,7 @@ class NeuralNetwork {
                 ans.push_back(logits[i][j]);
             }
         }
+
         return ans;
     }
 
