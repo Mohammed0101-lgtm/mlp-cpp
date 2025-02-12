@@ -365,6 +365,7 @@ class Value
 
 std::vector<std::vector<Value>> relu(std::vector<std::vector<Value>>& data) {
     std::vector<std::vector<Value>> result;
+    
     for (size_t i = 0; i < data.size(); i++)
         for (size_t j = 0; j < data[i].size(); j++)
             result[i][j] = std::max(0.0f, data[i][j].data);
@@ -491,7 +492,7 @@ class Embedding
     }
 
     // Forward pass: lookup embeddings for input indices
-    std::vector<std::vector<data::Value>> table_forward(const std::vector<int>& input_indices) {
+    std::vector<std::vector<data::Value>> table_forward(const std::vector<int>& input_indices) const {
         if (input_indices.empty())
             throw std::runtime_error("Cannot forward pass empty set of indices");
 
@@ -586,7 +587,7 @@ class LinearLayer
         }
     }
 
-    std::vector<std::vector<data::Value>> feed_forward(std::vector<std::vector<data::Value>>& data) {
+    std::vector<std::vector<data::Value>> feed_forward(std::vector<std::vector<data::Value>>& data) const {
         if (data.size() != weights.size())
             throw std::runtime_error("Weights size should be equal to input size");
 
@@ -636,7 +637,7 @@ class NeuralNetwork
     void set_train() { is_training = true; }
 
     // forward pass of the network
-    std::vector<data::Value> feed_forward(std::vector<int>& input_data) {
+    std::vector<data::Value> feed_forward(std::vector<int>& input_data) const {
         size_t input_size = input_data.size();
         // look up the tokens indexing
         std::vector<std::vector<data::Value>> logits = lookup_table.table_forward(input_data);
@@ -750,7 +751,7 @@ class NeuralNetwork
     }
 
     // mean squared error loss (for simplicity)
-    float mse_loss(const std::vector<data::Value>& predicted, const std::vector<data::Value>& targets) {
+    static float mse_loss(const std::vector<data::Value>& predicted, const std::vector<data::Value>& targets) {
         // initialize
         float  sumSquaredDifferences = 0.0f;
         size_t numElements           = predicted.size();
@@ -771,17 +772,19 @@ class NeuralNetwork
 };  // namespace nn
 
 std::unordered_map<std::string, float>
-estimate_loss(nn::NeuralNetwork& model, std::vector<int> train_data, std::vector<int> val_data) {
+estimate_loss(const nn::NeuralNetwork& model, std::vector<int> train_data, std::vector<int> val_data) {
     Data_loader                            loader;
     std::unordered_map<std::string, float> out;
 
     for (const std::string& split : {"train", "val"})
     {
         std::vector<float> losses(EVAL_ITERS, 0.0f);
+
         for (int k = 0; k < EVAL_ITERS; k++)
         {
             auto [inputs, targets] = loader.get_batch(split == "train" ? train_data : val_data);
             std::vector<data::Value> converted_targets;
+        
             for (int val : targets)
                 converted_targets.push_back(data::Value(static_cast<float>(val)));
 
