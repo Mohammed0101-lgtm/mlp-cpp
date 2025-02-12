@@ -197,7 +197,7 @@ class LanguageModel: public torch::nn::Module {
             torch::Tensor loss   = torch::nn::functional::cross_entropy(logits, targets);
             loss.backward();
             optimizer.step();
-        }
+        }  
     }
 
     std::string
