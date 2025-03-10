@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <set>
 #include <sstream>
 #include <string>
@@ -167,6 +168,32 @@ class DataLoader
 
         return ret;
     }
+
+    std::vector<std::vector<Value>>
+    get_batches(const std::vector<Value>& _data, const int _batch_size, const int _n_batches) const {
+        if (_data.empty())
+            throw std::invalid_argument("Cannot create batches from an empty dataset");
+
+        std::vector<std::vector<Value>> batches;
+        std::mt19937                    gen(std::random_device{}());
+        std::uniform_int_distribution<> dis(0, _data.size() - 1);
+
+        size_t start = dis(gen);
+        size_t end   = start + _batch_size;
+
+        for (int i = 0; i < _n_batches; i++)
+        {
+            std::vector<Value> batch;
+            for (int j = start; j < end; j++)
+                batch.push_back(_data[i * _batch_size + j]);
+
+            batches.push_back(batch);
+            start += _batch_size;
+            end += _batch_size;
+        }
+
+        return batches;
+    }
 };
 
 
@@ -174,6 +201,7 @@ class LookupTable
 {
    private:
     std::vector<int> r;
+    
 
    public:
 };
@@ -200,7 +228,4 @@ class Linear
 };
 
 
-int main(void) { 
-    return 0; 
-}
-
+int main(void) { return 0; }
