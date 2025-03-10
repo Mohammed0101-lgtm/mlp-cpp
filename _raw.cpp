@@ -120,7 +120,6 @@ class Value
     }
 };
 
-
 class DataLoader
 {
    public:
@@ -196,16 +195,14 @@ class DataLoader
     }
 };
 
-
 class LookupTable
 {
    private:
     std::vector<int> r;
-    
+
 
    public:
 };
-
 
 class Linear
 {
@@ -226,6 +223,5 @@ class Linear
         return logits;
     }
 };
-
 
 int main(void) { return 0; }
