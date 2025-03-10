@@ -1,0 +1,8 @@
+[
+{
+  "directory": "/Users/mohamedrabbit/mlp-cpp/build",
+  "command": "/usr/bin/clang++ -DPROTOBUF_USE_DLLS -DUSE_C10D_GLOO -DUSE_DISTRIBUTED -DUSE_RPC -DUSE_TENSORPIPE -isystem /opt/homebrew/include -isystem /opt/homebrew/include/torch/csrc/api/include -g -std=gnu++17 -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk -o CMakeFiles/mlp.dir/mlp.cpp.o -c /Users/mohamedrabbit/mlp-cpp/mlp.cpp",
+  "file": "/Users/mohamedrabbit/mlp-cpp/mlp.cpp",
+  "output": "CMakeFiles/mlp.dir/mlp.cpp.o"
+}
+]
